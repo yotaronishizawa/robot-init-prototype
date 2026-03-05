@@ -20,6 +20,7 @@ export interface RobotInitStep {
   id: string;
   label: string;
   description?: string;
+  noHistory?: boolean; // APIコールを伴わないステップはHistoryに記録しない
 }
 
 export const ROBOT_INIT_OPERATIONS: RobotInitOperation[] = [
@@ -47,6 +48,7 @@ export const ROBOT_INIT_OPERATIONS: RobotInitOperation[] = [
         id: 'jig-removal',
         label: 'ジグ取り外し',
         description: 'キャリブレーションに使用したジグの取り外しを行います。',
+        noHistory: true,
       },
     ],
     component: JointCalibrationOperation,

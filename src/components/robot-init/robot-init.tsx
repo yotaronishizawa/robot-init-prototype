@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Stepper, type StepGroup, type StepState } from '../ui/stepper';
@@ -6,7 +7,27 @@ import { ROBOT_INIT_OPERATIONS, type RobotInitOperation, type RobotInitStep } fr
 
 const MOCK_ROBOT_ID = 'robot-001';
 
-export function RobotInit() {
+export interface StepCompleteInfo {
+  stepId: string;
+  stepLabel: string;
+  operationId: string;
+  operationLabel: string;
+  isOperationComplete: boolean;
+  noHistory: boolean;
+}
+
+interface RobotInitProps {
+  onStepComplete?: (info: StepCompleteInfo) => void;
+  onStepRunning?: (stepId: string) => void;
+  onPoseChange?: (roll: number, pitch: number) => void;
+  onPositionChange?: (dx: number, dz: number) => void;
+  onOperationChange?: (operationId: string) => void;
+  onActiveStepChange?: (stepId: string) => void;
+  cameraFeedUrls?: { cam0?: string; cam1?: string };
+  anyHumanDetected?: boolean;
+}
+
+export function RobotInit({ onStepComplete, onStepRunning, onPoseChange, onPositionChange, onOperationChange, onActiveStepChange, cameraFeedUrls, anyHumanDetected }: RobotInitProps) {
   const getStepOperation = (step: RobotInitStep): RobotInitOperation => {
     for (const operation of ROBOT_INIT_OPERATIONS) {
       if (operation.steps.some(opStep => opStep.id === step.id)) return operation;
@@ -25,6 +46,11 @@ export function RobotInit() {
   );
 
   const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(new Set());
+  const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
+  useEffect(() => { setFooterEl(document.getElementById('robot-init-footer')); }, []);
+  useEffect(() => { onOperationChange?.(activeOperation.id); }, [activeOperation.id, onOperationChange]);
+  useEffect(() => { onActiveStepChange?.(activeStep.id); }, [activeStep.id, onActiveStepChange]);
+
 
   const getStepState = useCallback(
     (step: RobotInitStep): StepState => {
@@ -76,13 +102,27 @@ export function RobotInit() {
   const ActiveOperation = activeOperation.component;
 
   const markStepComplete = (stepId: string, completed = true) => {
+    let nextCompletedIds: Set<string>;
+
     if (completed) {
-      setCompletedStepIds(prev => new Set([...Array.from(prev), stepId]));
+      nextCompletedIds = new Set([...Array.from(completedStepIds), stepId]);
     } else {
-      setCompletedStepIds(prev => {
-        const next = new Set(Array.from(prev));
-        next.delete(stepId);
-        return next;
+      nextCompletedIds = new Set(Array.from(completedStepIds));
+      nextCompletedIds.delete(stepId);
+    }
+
+    setCompletedStepIds(nextCompletedIds);
+
+    if (completed && onStepComplete) {
+      const step = activeOperation.steps.find(s => s.id === stepId) ?? activeStep;
+      const isOpComplete = activeOperation.steps.every(s => nextCompletedIds.has(s.id));
+      onStepComplete({
+        stepId,
+        stepLabel: step.label,
+        operationId: activeOperation.id,
+        operationLabel: getTitleText(activeOperation),
+        isOperationComplete: isOpComplete,
+        noHistory: step.noHistory ?? false,
       });
     }
 
@@ -96,13 +136,14 @@ export function RobotInit() {
   };
 
   return (
+    <>
     <div className="grid md:grid-cols-[320px_1fr] items-start h-full">
       <div className="p-4 border-r h-full overflow-y-auto">
         <Stepper groups={stepperGroups} activeStepId={activeStep.id} />
       </div>
 
-      <div className="flex h-full flex-col gap-6">
-        <div className="flex flex-col h-full p-6 gap-6 overflow-y-auto">
+      <div className="flex h-full flex-col min-w-0">
+        <div className="flex flex-col flex-1 p-6 gap-6 overflow-y-auto overflow-x-hidden">
           <header className="space-y-1">
             <h1 className="text-2xl font-semibold">{getTitleText(activeOperation)}</h1>
             {subTitleText ? <h2 className="text-lg font-medium">{subTitleText}</h2> : null}
@@ -114,36 +155,47 @@ export function RobotInit() {
               activeStepId={activeStep.id}
               robotId={MOCK_ROBOT_ID}
               onCompleteStep={markStepComplete}
+              onStepRunning={onStepRunning}
+              onPoseChange={onPoseChange}
+              onPositionChange={onPositionChange}
+              cameraFeedUrls={cameraFeedUrls}
+              anyHumanDetected={anyHumanDetected}
             />
           </div>
         </div>
-        <footer className="flex flex-wrap items-center justify-between gap-6 px-4 py-3 border-t">
-          <div className="flex items-center gap-8">
-            {!activeOperationCompleted ? (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 text-base font-semibold text-foreground hover:underline"
-                onClick={() => markStepComplete(activeStep.id, true)}
-              >
-                <span>{activeStep.label}をスキップ</span>
-                <ChevronRight className="size-5" />
-              </button>
-            ) : null}
-          </div>
-          <Button
-            disabled={!operationStepsComplete}
-            onClick={() => {
-              if (nextOperation) {
-                setActiveStep(nextOperation.steps[0]!);
-                return;
-              }
-              alert('全ての手順が完了しました！');
-            }}
-          >
-            {nextOperation ? `${getTitleText(nextOperation)}へ進む` : '完了してホームに戻る'}
-          </Button>
-        </footer>
+
       </div>
     </div>
+
+    {footerEl && createPortal(
+      <footer className="flex flex-wrap items-center justify-between gap-6 px-4 py-3 border-t bg-background shrink-0">
+        <div className="flex items-center gap-8">
+          {!activeOperationCompleted ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-base font-semibold text-foreground hover:underline"
+              onClick={() => markStepComplete(activeStep.id, true)}
+            >
+              <span>{activeStep.label}をスキップ</span>
+              <ChevronRight className="size-5" />
+            </button>
+          ) : null}
+        </div>
+        <Button
+          disabled={!operationStepsComplete}
+          onClick={() => {
+            if (nextOperation) {
+              setActiveStep(nextOperation.steps[0]!);
+              return;
+            }
+            alert('全ての手順が完了しました！');
+          }}
+        >
+          {nextOperation ? `${getTitleText(nextOperation)}へ進む` : '完了してホームに戻る'}
+        </Button>
+      </footer>,
+      footerEl!
+    )}
+    </>
   );
 }

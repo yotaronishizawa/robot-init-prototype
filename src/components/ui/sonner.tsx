@@ -1,0 +1,12 @@
+import { Toaster as Sonner, type ToasterProps } from 'sonner';
+
+export function Toaster(props: ToasterProps) {
+  return (
+    <Sonner
+      richColors
+      position="top-right"
+      duration={3500}
+      {...props}
+    />
+  );
+}

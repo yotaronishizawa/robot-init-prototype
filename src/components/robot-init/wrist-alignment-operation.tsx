@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '../ui/input-group';
-import { toast } from '../ui/toast';
+import { toast } from 'sonner';
 import { mockApi } from '../../lib/mock-api';
 import { CameraLiveView } from '../camera-live-view';
 import type { OperationProps } from '../../types/operation';
@@ -14,7 +14,7 @@ const ALIGNMENT_STATUS_DEBOUNCE_MS = 350;
 const isResponseSuccess = (response: { status: number; errors: unknown[] }) =>
   response.status >= 200 && response.status < 300 && response.errors.length === 0;
 
-export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep }: OperationProps) {
+export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep, onPoseChange, onPositionChange, cameraFeedUrls, anyHumanDetected }: OperationProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [hasSavedLeft, setHasSavedLeft] = useState(false);
   const [hasSavedRight, setHasSavedRight] = useState(false);
@@ -33,6 +33,7 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
   const hasRobotId = Boolean(robotId);
   const parsedDistance = Number(movementDistance);
   const hasValidDistance = movementDistance.trim() !== '' && Number.isFinite(parsedDistance) && parsedDistance > 0;
+  const blocked = !!anyHumanDetected;
 
   const scheduleAlignment = useCallback(
     (nextRoll: string, nextPitch: string) => {
@@ -128,6 +129,8 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
     setIsMoving(true);
     await mockApi.moveRailPositionInitiate(robotId, vector);
     await mockApi.moveRailPositionConfirm(robotId);
+    // Propagate position delta (mm → metres) to the panel
+    onPositionChange?.(xPosition / 1000, zPosition / 1000);
     setIsMoving(false);
   };
 
@@ -155,7 +158,7 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <div className="flex-1">
-          <CameraLiveView robotCamera={robotCamera} robotId={robotId} />
+          <CameraLiveView robotCamera={robotCamera} robotId={robotId} feedUrl={isLeft ? cameraFeedUrls?.cam0 : cameraFeedUrls?.cam1} />
         </div>
 
         <div className="lg:max-w-[420px] space-y-6">
@@ -202,24 +205,24 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
               <div className="min-w-[120px]">
                 <div className="flex flex-col aspect-square justify-between mt-4">
                   <Button size="icon" variant="default" className="self-center"
-                    disabled={!hasRobotId || !hasValidDistance || isMoving}
+                    disabled={!hasRobotId || !hasValidDistance || isMoving || blocked}
                     onClick={() => void handleMove('z', 1)}>
                     {isMoving ? <Loader2 className="size-4 animate-spin" /> : <ChevronUp className="size-4" />}
                   </Button>
                   <div className="flex justify-between gap-3">
                     <Button size="icon" variant="default"
-                      disabled={!hasRobotId || !hasValidDistance || isMoving}
+                      disabled={!hasRobotId || !hasValidDistance || isMoving || blocked}
                       onClick={() => void handleMove('x', -1)}>
                       {isMoving ? <Loader2 className="size-4 animate-spin" /> : <ChevronLeft className="size-4" />}
                     </Button>
                     <Button size="icon" variant="default"
-                      disabled={!hasRobotId || !hasValidDistance || isMoving}
+                      disabled={!hasRobotId || !hasValidDistance || isMoving || blocked}
                       onClick={() => void handleMove('x', 1)}>
                       {isMoving ? <Loader2 className="size-4 animate-spin" /> : <ChevronRight className="size-4" />}
                     </Button>
                   </div>
                   <Button size="icon" variant="default" className="self-center"
-                    disabled={!hasRobotId || !hasValidDistance || isMoving}
+                    disabled={!hasRobotId || !hasValidDistance || isMoving || blocked}
                     onClick={() => void handleMove('z', -1)}>
                     {isMoving ? <Loader2 className="size-4 animate-spin" /> : <ChevronDown className="size-4" />}
                   </Button>
@@ -246,13 +249,15 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
                       <span>Roll</span>
                       <InputGroup className="w-full">
                         <InputGroupInput
-                          type="number" step="0.1" min="-5" max="5" value={rollInput}
+                          type="number" step="0.1" min="-5" max="5" value={rollInput} disabled={blocked}
                           onChange={e => {
                             const v = e.target.value;
                             setRollInput(v);
                             setAlignmentStatus('pending');
                             setAlignmentError(null);
                             scheduleAlignment(v, pitchInput);
+                            const n = Number(v);
+                            if (Number.isFinite(n)) onPoseChange?.(n, Number(pitchInput));
                           }}
                         />
                         <InputGroupAddon align="inline-end"><InputGroupText>°</InputGroupText></InputGroupAddon>
@@ -264,13 +269,15 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
                       <span>Pitch</span>
                       <InputGroup className="w-full">
                         <InputGroupInput
-                          type="number" step="0.1" min="-5" max="5" value={pitchInput}
+                          type="number" step="0.1" min="-5" max="5" value={pitchInput} disabled={blocked}
                           onChange={e => {
                             const v = e.target.value;
                             setPitchInput(v);
                             setAlignmentStatus('pending');
                             setAlignmentError(null);
                             scheduleAlignment(rollInput, v);
+                            const n = Number(v);
+                            if (Number.isFinite(n)) onPoseChange?.(Number(rollInput), n);
                           }}
                         />
                         <InputGroupAddon align="inline-end"><InputGroupText>°</InputGroupText></InputGroupAddon>
@@ -288,7 +295,7 @@ export function WristAlignmentOperation({ robotId, activeStepId, onCompleteStep 
                 <div className="flex flex-wrap gap-2 mt-8">
                   <Button
                     variant="default"
-                    disabled={!hasRobotId || isSaving || saveButtonDisabled}
+                    disabled={!hasRobotId || isSaving || saveButtonDisabled || blocked}
                     onClick={() => void handleSave()}
                   >
                     {isSaving ? '保存中...' : saveButtonLabel}

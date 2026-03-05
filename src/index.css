@@ -1,23 +1,57 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #FF6B00;
+@theme inline {
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.145 0 0);
+  --color-primary: #ea580c;
   --color-primary-foreground: #ffffff;
-  --color-background: #ffffff;
-  --color-foreground: #111111;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #6b7280;
-  --color-border: #e5e5e5;
-  --color-input: #e5e5e5;
-  --color-ring: #FF6B00;
-  --color-destructive: #dc2626;
+  --color-muted: oklch(0.97 0 0);
+  --color-muted-foreground: oklch(0.556 0 0);
+  --color-border: oklch(0.922 0 0);
+  --color-input: oklch(0.922 0 0);
+  --color-ring: oklch(0.708 0 0);
+  --color-destructive: oklch(0.54 0.2 29.13);
   --color-destructive-foreground: #ffffff;
   --font-family-sans: 'Geist', 'Inter', system-ui, sans-serif;
+  --font-family-mono: 'JetBrains Mono', ui-monospace, monospace;
   --radius: 0.5rem;
 }
 
-* {
-  box-sizing: border-box;
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
+/* Camera boot animation keyframes */
+@keyframes cam-scan {
+  from { top: -12px; }
+  to   { top: 110%; }
+}
+@keyframes cam-flicker {
+  0%, 100% { opacity: 1; }
+  20%  { opacity: 0.15; }
+  50%  { opacity: 0.85; }
+  75%  { opacity: 0.3; }
+}
+@keyframes cam-flash {
+  0%   { opacity: 0; }
+  25%  { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+@keyframes cam-progress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+@keyframes cam-text-in {
+  0%   { opacity: 0; letter-spacing: 0.3em; }
+  40%  { opacity: 1; letter-spacing: 0.15em; }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes cam-scanlines {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 4px; }
 }
 
 body {

@@ -1,5 +1,5 @@
 import { Check, Minus } from 'lucide-react';
-import { cn } from '../../lib/cn';
+import { cn } from '@/lib/utils';
 
 export type StepState = 'idle' | 'active' | 'complete' | 'skipped';
 

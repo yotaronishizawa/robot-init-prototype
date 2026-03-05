@@ -2,16 +2,16 @@ import { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
-import { toast } from '../ui/toast';
+import { toast } from 'sonner';
 import { mockApi } from '../../lib/mock-api';
 import type { OperationProps } from '../../types/operation';
 
-export function JointCalibrationOperation({ activeStepId, robotId, onCompleteStep }: OperationProps) {
+export function JointCalibrationOperation({ activeStepId, robotId, onCompleteStep, onStepRunning }: OperationProps) {
   if (activeStepId === 'joint-run') {
     return <JointRunScreen robotId={robotId} onCompleteStep={onCompleteStep} stepId={activeStepId} />;
   }
   if (activeStepId === 'verify-joint-calibration') {
-    return <VerifyJointCalibrationScreen robotId={robotId} onCompleteStep={onCompleteStep} stepId={activeStepId} />;
+    return <VerifyJointCalibrationScreen robotId={robotId} onCompleteStep={onCompleteStep} onStepRunning={onStepRunning} stepId={activeStepId} />;
   }
   if (activeStepId === 'jig-removal') {
     return <JigRemovalScreen onCompleteStep={onCompleteStep} stepId={activeStepId} />;
@@ -119,7 +119,7 @@ function JointRunScreen({
           </label>
         </div>
       </div>
-      <div className="w-[520px] max-w-full h-[280px] rounded-md border bg-muted flex items-center justify-center text-muted-foreground text-sm">
+      <div className="w-full max-w-[520px] h-[280px] rounded-md border bg-muted flex items-center justify-center text-muted-foreground text-sm">
         ロボットアーム ジグ参考画像
       </div>
       <div>
@@ -135,10 +135,12 @@ function JointRunScreen({
 function VerifyJointCalibrationScreen({
   robotId,
   onCompleteStep,
+  onStepRunning,
   stepId,
 }: {
   robotId?: string;
   onCompleteStep: (id: string) => void;
+  onStepRunning?: (stepId: string) => void;
   stepId: string;
 }) {
   const [isComplete, setIsComplete] = useState(false);
@@ -148,6 +150,7 @@ function VerifyJointCalibrationScreen({
   const handleRun = async () => {
     if (!robotId) return;
     setIsPending(true);
+    onStepRunning?.(stepId);
     const cmdId = await mockApi.verifyJointCalibrationInitiate(robotId);
     if (cmdId?.value) {
       await mockApi.verifyJointCalibrationConfirm(cmdId.value);

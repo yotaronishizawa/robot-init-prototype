@@ -1,5 +1,5 @@
 import React from 'react';
-import { cn } from '../../lib/cn';
+import { cn } from '@/lib/utils';
 
 export const InputGroup: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => (
   <div className={cn('flex items-stretch rounded-md border border-input overflow-hidden', className)} {...props} />

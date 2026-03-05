@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { toast } from '../ui/toast';
+import { toast } from 'sonner';
 import { mockApi } from '../../lib/mock-api';
 import type { OperationProps } from '../../types/operation';
 
