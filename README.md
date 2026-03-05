@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Robot Init Prototype
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A frontend prototype for the Robot Initialization flow, built by design for reference during implementation.
 
-Currently, two official plugins are available:
+> **Note:** This is a design prototype, not production code. It is intended to communicate UI intent and interaction patterns. Feel free to use it as a reference — you don't have to follow the code structure as-is.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Purpose
 
-## React Compiler
+This prototype covers the full Robot Init process (Joint Calibration → Robot SW Start → Hand-Eye Calibration → Wrist Alignment) along with a status panel that displays live robot state during the process.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Getting Started
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Key Components
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Component | Description |
+|-----------|-------------|
+| `src/components/robot-init/robot-init.tsx` | Main Robot Init flow with step/operation management |
+| `src/components/robot-init/robot-init-operations-config.ts` | Configuration for all operations and steps |
+| `src/components/BreathingPanel.tsx` | Status panel shown alongside the init flow |
+| `src/App.tsx` | Root — wires together the init flow and status panel |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Status Panel
+
+The status panel (`BreathingPanel`) is designed to show only data that can be fetched from the server at any time (stateless). The following information is displayed:
+
+| Info | States | Data source |
+|------|--------|-------------|
+| Camera feed | Online / Offline | `GET /camera-snapshot` |
+| Robot connection status | Online / Offline | `GET /telemetry` → `RobotStatus` |
+| Last updated time | timestamp / — | `GET /telemetry` → `last_updated_at` |
+| `HumanDetectionEnabled` | true / false | `RobotLiveData` |
+| `HumanDetected` | true / false | `GetHumanDetectionMessage()` → `human_presence_hist` |
+| `ObstacleDetected` | true / false | `GetHumanDetectionMessage()` → `obstacle_present` |
+| `FallenDrinkDetected` | true / false | `GetHumanDetectionMessage()` → `fallen_drink_present` |
+
+## Mock API
+
+All API calls are mocked in `src/lib/mock-api.ts` with artificial delays to simulate real async behavior. In production, these would map to the actual backend endpoints (initiate → confirm pattern).
