@@ -7,6 +7,9 @@ import { mockApi } from '../../lib/mock-api';
 import type { OperationProps } from '../../types/operation';
 
 export function JointCalibrationOperation({ activeStepId, robotId, onCompleteStep, onStepRunning }: OperationProps) {
+  if (activeStepId === 'jig-install') {
+    return <JigInstallScreen onCompleteStep={onCompleteStep} stepId={activeStepId} />;
+  }
   if (activeStepId === 'joint-run') {
     return <JointRunScreen robotId={robotId} onCompleteStep={onCompleteStep} stepId={activeStepId} />;
   }
@@ -167,6 +170,27 @@ function VerifyJointCalibrationScreen({
         {isPending && <Loader2 className="size-4 animate-spin" />}
         ジョイントキャリブレーションの結果を確認
       </Button>
+    </div>
+  );
+}
+
+function JigInstallScreen({ onCompleteStep, stepId }: { onCompleteStep: (id: string) => void; stepId: string }) {
+  const [isChecked, setIsChecked] = useState(false);
+
+  return (
+    <div className="space-y-3">
+      <div className="text-base font-semibold">確認事項</div>
+      <label className="flex items-center gap-3 cursor-pointer">
+        <Checkbox
+          checked={isChecked}
+          onCheckedChange={value => {
+            const next = Boolean(value);
+            setIsChecked(next);
+            if (next) onCompleteStep(stepId);
+          }}
+        />
+        <span className="text-sm md:text-base">ジグの取り付けが完了している</span>
+      </label>
     </div>
   );
 }

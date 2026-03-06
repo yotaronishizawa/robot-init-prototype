@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Stepper, type StepGroup, type StepState } from '../ui/stepper';
-import { ROBOT_INIT_OPERATIONS, type RobotInitOperation, type RobotInitStep } from './robot-init-operations-config';
+import { getRobotInitOperations, type RobotInitOperation, type RobotInitStep } from './robot-init-operations-config';
 
 const MOCK_ROBOT_ID = 'robot-001';
 
@@ -17,6 +17,7 @@ export interface StepCompleteInfo {
 }
 
 interface RobotInitProps {
+  includeArm?: boolean;
   onStepComplete?: (info: StepCompleteInfo) => void;
   onStepRunning?: (stepId: string) => void;
   onPoseChange?: (roll: number, pitch: number) => void;
@@ -27,22 +28,24 @@ interface RobotInitProps {
   anyHumanDetected?: boolean;
 }
 
-export function RobotInit({ onStepComplete, onStepRunning, onPoseChange, onPositionChange, onOperationChange, onActiveStepChange, cameraFeedUrls, anyHumanDetected }: RobotInitProps) {
+export function RobotInit({ includeArm = false, onStepComplete, onStepRunning, onPoseChange, onPositionChange, onOperationChange, onActiveStepChange, cameraFeedUrls, anyHumanDetected }: RobotInitProps) {
+  const operations = useMemo(() => getRobotInitOperations(includeArm), [includeArm]);
+
   const getStepOperation = (step: RobotInitStep): RobotInitOperation => {
-    for (const operation of ROBOT_INIT_OPERATIONS) {
+    for (const operation of operations) {
       if (operation.steps.some(opStep => opStep.id === step.id)) return operation;
     }
-    return ROBOT_INIT_OPERATIONS[0]!;
+    return operations[0]!;
   };
 
   const getStepIndex = (step: RobotInitStep) =>
     getStepOperation(step).steps.findIndex(opStep => opStep.id === step.id);
 
-  const [activeStep, setActiveStep] = useState<RobotInitStep>(() => ROBOT_INIT_OPERATIONS[0]!.steps[0]!);
+  const [activeStep, setActiveStep] = useState<RobotInitStep>(() => getRobotInitOperations(includeArm)[0]!.steps[0]!);
   const activeOperation = useMemo(() => getStepOperation(activeStep), [activeStep]);
   const nextOperation = useMemo(
-    () => ROBOT_INIT_OPERATIONS[ROBOT_INIT_OPERATIONS.findIndex(op => op.id === activeOperation.id) + 1] ?? null,
-    [activeOperation],
+    () => operations[operations.findIndex(op => op.id === activeOperation.id) + 1] ?? null,
+    [activeOperation, operations],
   );
 
   const [completedStepIds, setCompletedStepIds] = useState<Set<string>>(new Set());
@@ -73,7 +76,7 @@ export function RobotInit({ onStepComplete, onStepRunning, onPoseChange, onPosit
 
   const stepperGroups: StepGroup[] = useMemo(
     () =>
-      ROBOT_INIT_OPERATIONS.map(operation => ({
+      operations.map(operation => ({
         id: operation.id,
         label: operation.label,
         state: activeOperation.id === operation.id ? 'active' : isOperationComplete(operation) ? 'complete' : 'idle',
@@ -137,30 +140,32 @@ export function RobotInit({ onStepComplete, onStepRunning, onPoseChange, onPosit
 
   return (
     <>
-    <div className="grid md:grid-cols-[320px_1fr] items-start h-full">
+    <div className="grid md:grid-cols-[320px_1fr] items-stretch h-full">
       <div className="p-4 border-r h-full overflow-y-auto">
         <Stepper groups={stepperGroups} activeStepId={activeStep.id} />
       </div>
 
       <div className="flex h-full flex-col min-w-0">
-        <div className="flex flex-col flex-1 p-6 gap-6 overflow-y-auto overflow-x-hidden">
-          <header className="space-y-1">
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <header className="space-y-1 shrink-0 p-6">
             <h1 className="text-2xl font-semibold">{getTitleText(activeOperation)}</h1>
             {subTitleText ? <h2 className="text-lg font-medium">{subTitleText}</h2> : null}
             {descriptionText ? <p className="text-muted-foreground">{descriptionText}</p> : null}
           </header>
-          <div className="flex-1">
-            <ActiveOperation
-              operationId={activeOperation.id}
-              activeStepId={activeStep.id}
-              robotId={MOCK_ROBOT_ID}
-              onCompleteStep={markStepComplete}
-              onStepRunning={onStepRunning}
-              onPoseChange={onPoseChange}
-              onPositionChange={onPositionChange}
-              cameraFeedUrls={cameraFeedUrls}
-              anyHumanDetected={anyHumanDetected}
-            />
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col">
+            <div className="px-6 flex flex-col flex-1">
+              <ActiveOperation
+                operationId={activeOperation.id}
+                activeStepId={activeStep.id}
+                robotId={MOCK_ROBOT_ID}
+                onCompleteStep={markStepComplete}
+                onStepRunning={onStepRunning}
+                onPoseChange={onPoseChange}
+                onPositionChange={onPositionChange}
+                cameraFeedUrls={cameraFeedUrls}
+                anyHumanDetected={anyHumanDetected}
+              />
+            </div>
           </div>
         </div>
 
